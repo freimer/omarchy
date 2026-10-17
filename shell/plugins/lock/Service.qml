@@ -18,6 +18,19 @@ Item {
   readonly property string userName: Quickshell.env("USER") || Quickshell.env("LOGNAME")
   readonly property string currentBackgroundLink: stateHome + "/omarchy/current/background"
 
+  // How many seconds the locked displays stay lit before they blank, counted
+  // from the lock appearing. A panel that needs longer than the default to come
+  // back from a blank raises this; zero keeps the displays lit until unlock.
+  readonly property int defaultBlankSeconds: 5
+  readonly property var idleConfig: shell && Util.isPlainObject(shell.shellConfig) && Util.isPlainObject(shell.shellConfig.idle)
+    ? shell.shellConfig.idle
+    : (shell && Util.isPlainObject(shell.idleConfig) ? shell.idleConfig : ({}))
+  readonly property int blankSeconds: {
+    var configured = Number(idleConfig.blank)
+    return isFinite(configured) && configured >= 0 ? Math.floor(configured) : defaultBlankSeconds
+  }
+  readonly property bool blankEnabled: blankSeconds > 0
+
   property bool lockRequested: false
   property bool pendingSessionLock: false
   property bool authenticatingPassword: false
@@ -258,6 +271,11 @@ Item {
   }
 
   function armBlankTimer() {
+    if (!blankEnabled) {
+      idleBlankTimer.stop()
+      return
+    }
+    idleBlankTimer.interval = blankSeconds * 1000
     idleBlankTimer.armedAt = Date.now()
     idleBlankTimer.restart()
   }
@@ -830,7 +848,9 @@ Item {
 
   Timer {
     id: idleBlankTimer
-    interval: 5000
+    // Armed with the configured delay in armBlankTimer, the way the idle
+    // service arms its timers; the suspend guard below reads the interval it
+    // was armed with.
     repeat: false
     property double armedAt: 0
     onTriggered: {
@@ -900,6 +920,10 @@ Item {
       strandedLockRetryTimer.rearm()
       root.checkStrandedLock()
     }
+  }
+
+  onBlankEnabledChanged: {
+    if (!blankEnabled) idleBlankTimer.stop()
   }
 
   onAuthenticatingPasswordChanged: {
