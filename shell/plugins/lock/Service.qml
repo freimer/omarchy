@@ -6,6 +6,7 @@ import Quickshell.Wayland
 import qs.Commons
 import qs.Commons as Commons
 import "FingerprintModel.js" as FingerprintModel
+import "LockModel.js" as LockModel
 
 Item {
   id: root
@@ -25,10 +26,7 @@ Item {
   readonly property var idleConfig: shell && Util.isPlainObject(shell.shellConfig) && Util.isPlainObject(shell.shellConfig.idle)
     ? shell.shellConfig.idle
     : (shell && Util.isPlainObject(shell.idleConfig) ? shell.idleConfig : ({}))
-  readonly property int blankSeconds: {
-    var configured = Number(idleConfig.blank)
-    return isFinite(configured) && configured >= 0 ? Math.floor(configured) : defaultBlankSeconds
-  }
+  readonly property int blankSeconds: LockModel.blankSeconds(idleConfig.blank, defaultBlankSeconds)
   readonly property bool blankEnabled: blankSeconds > 0
 
   property bool lockRequested: false
